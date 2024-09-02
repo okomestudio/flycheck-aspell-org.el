@@ -46,7 +46,8 @@
   "Filter Aspell results within Org files."
   (if (not (derived-mode-p 'org-mode))
       (apply orig-func rest)
-    (let* ((pre "^[ \t]*")
+    (let* ((inhibit-message t)
+           (pre "^[ \t]*")
            (regexp-per-file-keyword
             (concat pre "#\\+\\([[:alnum:]]+\\):\\s-*"))
            (regexp-block-begin
