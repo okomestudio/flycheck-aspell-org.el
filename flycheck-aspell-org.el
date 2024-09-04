@@ -88,9 +88,17 @@
                 (catch 'skip
                   (save-mark-and-excursion
                     (goto-line line)
-                    (setq bol (progn (beginning-of-line) (point)))
-                    (setq eol (progn (end-of-line) (point)))
-                    (move-to-column column)
+                    (setq bol (pos-bol))
+                    (setq eol (pos-eol))
+
+                    ;; NOTE: `column' from aspell is the number of
+                    ;; characters, but Emacs's column counts two-byte
+                    ;; character as two. Thus `move-to-column' cannot
+                    ;; be used.
+                    (goto-char bol)
+                    (dotimes (i column)
+                      (forward-char))
+
                     (setq pos (point))
 
                     ;; Skip tag
