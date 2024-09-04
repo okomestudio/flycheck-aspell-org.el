@@ -94,6 +94,15 @@
                     (move-to-column column)
                     (setq pos (point))
 
+                    ;; Skip tag
+                    (if (string= "tag" (car (org-thing-at-point)))
+                        (throw 'skip nil))
+
+                    ;; Skip TODO
+                    (if (seq-contains-p (car org-todo-keywords)
+                                        (word-at-point t))
+                        (throw 'skip nil))
+
                     ;; Skip text marked as code with the "~" markup
                     (setq ml (re-search-backward "~" bol t))
                     (when ml
