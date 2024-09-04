@@ -96,7 +96,7 @@
                     ;; character as two. Thus `move-to-column' cannot
                     ;; be used.
                     (goto-char bol)
-                    (dotimes (i column)
+                    (dotimes (i (1- column))
                       (forward-char))
 
                     (setq pos (point))
@@ -117,6 +117,13 @@
                       (setq mh (re-search-forward "~" eol t))
                       (if (and mh (< pos mh))
                           (throw 'skip nil)))
+
+                    ;; Skip "fn" in footnote
+                    (goto-char pos)
+                    (if (and (string= (word-at-point t) "fn")
+                             (char-equal (char-before (1- pos)) 91)  ; "["
+                             (char-equal (char-after (1+ pos)) ?:))
+                        (throw 'skip nil))
 
                     ;; Skip link (but not description)
                     (goto-char pos)
