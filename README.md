@@ -7,6 +7,7 @@ The plug-in filters the aspell output to skip spelling errors that
 occur within some Org document structures. These include
 
 - Text marked as inline code (enclosed by the "`~`" markup)
+- Org tags and TODO labels
 - Text constituting part of link specification (but not description, `[[link][desc]]`)
 - Text used within per-file keyword, except title (e.g., `#+keyword: ...`)
 - Text inside block structures (which begin with `#+begin_` and end with `#+end_`; src, html, latex, example)
