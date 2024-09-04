@@ -46,8 +46,7 @@
   "Filter Aspell results within Org files."
   (if (not (derived-mode-p 'org-mode))
       (apply orig-func rest)
-    (let* ((inhibit-message t)
-           (pre "^[ \t]*")
+    (let* ((pre "^[ \t]*")
            (regexp-per-file-keyword
             (concat pre "#\\+\\([[:alnum:]]+\\):\\s-*"))
            (regexp-block-begin
@@ -76,12 +75,12 @@
         ;; Iterate over the error list items received from aspell and
         ;; skip the ones to not be considered as error based on their
         ;; position within the Org document.
-        (let* ((type (type-of it))
+        (let* ((inhibit-message t)
+               (type (type-of it))
                (line (cl-struct-slot-value type 'line it))
                (column (cl-struct-slot-value type 'column it))
                bol ; beginning of the line in which the current error is found
                eol ; end of the line in which the current error is found
-               ml  ; lower bound for the matched region
                mh  ; upper bound for the matched region
                pos ; position of error in the current document
                result)
@@ -104,26 +103,22 @@
                         (throw 'skip nil))
 
                     ;; Skip text marked as code with the "~" markup
-                    (setq ml (re-search-backward "~" bol t))
-                    (when ml
+                    (goto-char pos)
+                    (when (re-search-backward "~" bol t)
                       (forward-char 1)
                       (setq mh (re-search-forward "~" eol t))
-                      (if (and ml mh (< pos mh))
+                      (if (and mh (< pos mh))
                           (throw 'skip nil)))
 
                     ;; Skip link (but not description)
-                    (goto-line line)
-                    (move-to-column column)
-                    (let ((link (org-element-lineage (org-element-context) '(link) t)))
-                      (when link
-                        (setq ml (re-search-backward "\\[\\[" bol t))
-                        (when ml
-                          (setq mh (re-search-forward "\\]\\(\\[.*\\]\\)?\\]" eol t))
-                          (if (and ml mh (< pos mh))
-                              (throw 'skip nil)))))
+                    (goto-char pos)
+                    (when (re-search-backward "\\[\\[" bol t)
+                      (setq mh (re-search-forward "\\]\\(\\[.*\\]\\)?\\]" eol t))
+                      (if (and mh (< pos mh))
+                          (throw 'skip nil)))
 
                     ;; Skip per-file keywords
-                    (goto-line line)
+                    (goto-char pos)
                     (end-of-line)
                     (save-match-data
                       (when (re-search-backward regexp-per-file-keyword bol t)
@@ -131,12 +126,10 @@
                             (throw 'skip nil))))
 
                     ;; Skip if within a code block or property drawer
-                    (goto-line line)
-                    (move-to-column column)
-                    (setq ml (re-search-backward regexp-block-begin nil t))
-                    (when ml
+                    (goto-char pos)
+                    (when (re-search-backward regexp-block-begin nil t)
                       (setq mh (re-search-forward regexp-block-end nil t))
-                      (if (and ml mh (< pos mh))
+                      (if (and mh (< pos mh))
                           (throw 'skip nil))))
                   it))
           (when result
