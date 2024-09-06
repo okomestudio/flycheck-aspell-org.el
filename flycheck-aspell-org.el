@@ -91,14 +91,8 @@
                     (setq bol (pos-bol))
                     (setq eol (pos-eol))
 
-                    ;; NOTE: `column' from aspell is the number of
-                    ;; characters, but Emacs's column counts two-byte
-                    ;; character as two. Thus `move-to-column' cannot
-                    ;; be used.
                     (goto-char bol)
-                    (dotimes (i (1- column))
-                      (forward-char))
-
+                    (forward-char column)
                     (setq pos (point))
 
                     ;; Skip tag
