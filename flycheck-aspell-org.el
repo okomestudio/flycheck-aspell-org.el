@@ -39,108 +39,94 @@
 
 (add-to-list 'flycheck-checkers 'org-aspell-dynamic)
 
-(defcustom flycheck-aspell-org-skip-blocks '("src" "html" "latex" "example")
+(defcustom fao-skip-blocks '("src" "html" "latex" "example")
   "Org block structures for flycheck to skip.")
 
+(defun fao-enclosed-p (pos begin end &optional pos-min pos-max)
+  "Return '(min max) when BEGIN and END encloses POS.
+Optional POS-MIN and POS-MAX defines lower and upper bounds for
+search."
+  (goto-char pos)
+  (let ((ml (re-search-backward begin pos-min t)))
+    (when ml
+      (forward-char 1)
+      (let ((mh (re-search-forward end pos-max t)))
+        (if (and mh (< pos mh))
+            `(,ml ,mh))))))
+
 (defun flycheck-aspell--parse-org (orig-func &rest rest)
-  "Filter Aspell results within Org files."
+  "Filter Aspell results in `org-mode'."
   (if (not (derived-mode-p 'org-mode))
       (apply orig-func rest)
     (let* ((pre "^[ \t]*")
-           (regexp-per-file-keyword
-            (concat pre "#\\+\\([[:alnum:]]+\\):\\s-*"))
            (regexp-block-begin
-            (concat pre
-                    "\\("
-                    (string-join
-                     `(,(concat "#\\+begin_\\("
-                                (string-join flycheck-aspell-org-skip-blocks "\\|")
-                                "\\)")
-                       ":properties:")
-                     "\\|")
-                    "\\)"))
+            (concat
+             pre
+             "#\\+begin_\\("
+             (string-join flycheck-aspell-org-skip-blocks "\\|")
+             "\\)"))
            (regexp-block-end
-            (concat pre
-                    "\\("
-                    (string-join
-                     `(,(concat "#\\+end_\\("
-                                (string-join flycheck-aspell-org-skip-blocks "\\|")
-                                "\\)")
-                       ":end:")
-                     "\\|")
-                    "\\)"))
-           (case-fold-search t)
+            (concat
+             pre
+             "#\\+end_\\("
+             (string-join flycheck-aspell-org-skip-blocks "\\|")
+             "\\)"))
            (retval '()))
+      ;; Iterate over the error list items received from aspell and
+      ;; skip the ones to not be considered as error based on their
+      ;; position within the Org document.
       (dolist (it (apply orig-func rest))
-        ;; Iterate over the error list items received from aspell and
-        ;; skip the ones to not be considered as error based on their
-        ;; position within the Org document.
         (let* ((inhibit-message t)
+               (case-fold-search t)
                (type (type-of it))
                (line (cl-struct-slot-value type 'line it))
                (column (cl-struct-slot-value type 'column it))
-               bol ; beginning of the line in which the current error is found
-               eol ; end of the line in which the current error is found
-               mh  ; upper bound for the matched region
-               pos ; position of error in the current document
+               bol   ; beginning of the line in which the current error is found
+               eol   ; end of the line in which the current error is found
+               pos   ; position of error in the current document
+               word  ; word at point
                result)
-          (setq result
-                (catch 'skip
-                  (save-mark-and-excursion
-                    (goto-line line)
-                    (setq bol (pos-bol))
-                    (setq eol (pos-eol))
+          (setq
+           result
+           (catch 'skip
+             (save-mark-and-excursion
+               (goto-char (point-min))
+               (forward-line (1- line))
+               (forward-char (1- column))
+               (setq pos (point))
+               (setq bol (pos-bol))
+               (setq eol (pos-eol))
+               (setq word (word-at-point t))
 
-                    (goto-char bol)
-                    (forward-char column)
-                    (setq pos (point))
+               (if (or
+                    (string= "tag" (car (org-thing-at-point)))
+                    (fao-enclosed-p pos "~" "~" bol eol)
+                    (fao-enclosed-p pos "\\$" "\\$" bol eol)
+                    (fao-enclosed-p pos "\\\\(" "\\\\)" bol eol)
+                    (fao-enclosed-p pos "\\[\\[" "\\]\\(\\[.*\\]\\)?\\]" bol eol)
+                    (fao-enclosed-p pos "^[ \t]*:properties:" "^[ \t]*:end:")
+                    (fao-enclosed-p pos regexp-block-begin regexp-block-end)
+                    (seq-contains-p (car org-todo-keywords) word))
+                   (throw 'skip nil))
 
-                    ;; Skip tag
-                    (if (string= "tag" (car (org-thing-at-point)))
-                        (throw 'skip nil))
+               ;; Per-file keywords
+               (save-match-data
+                 (when (fao-enclosed-p pos
+                                       "^[ \t]*#\\+"
+                                       "\\([[:alnum:]]+\\):\\s-*\\(.+\\)$"
+                                       bol eol)
+                   (if (not (member (match-string 1) '("title")))
+                       (throw 'skip nil))))
 
-                    ;; Skip TODO
-                    (if (seq-contains-p (car org-todo-keywords)
-                                        (word-at-point t))
-                        (throw 'skip nil))
-
-                    ;; Skip text marked as code with the "~" markup
-                    (goto-char pos)
-                    (when (re-search-backward "~" bol t)
-                      (forward-char 1)
-                      (setq mh (re-search-forward "~" eol t))
-                      (if (and mh (< pos mh))
-                          (throw 'skip nil)))
-
-                    ;; Skip "fn" in footnote
-                    (goto-char pos)
-                    (if (and (string= (word-at-point t) "fn")
-                             (char-equal (char-before (1- pos)) 91)  ; "["
-                             (char-equal (char-after (1+ pos)) ?:))
-                        (throw 'skip nil))
-
-                    ;; Skip link (but not description)
-                    (goto-char pos)
-                    (when (re-search-backward "\\[\\[" bol t)
-                      (setq mh (re-search-forward "\\]\\(\\[.*\\]\\)?\\]" eol t))
-                      (if (and mh (< pos mh))
-                          (throw 'skip nil)))
-
-                    ;; Skip per-file keywords
-                    (goto-char pos)
-                    (end-of-line)
-                    (save-match-data
-                      (when (re-search-backward regexp-per-file-keyword bol t)
-                        (if (not (member (match-string 1) '("title")))
-                            (throw 'skip nil))))
-
-                    ;; Skip if within a code block or property drawer
-                    (goto-char pos)
-                    (when (re-search-backward regexp-block-begin nil t)
-                      (setq mh (re-search-forward regexp-block-end nil t))
-                      (if (and mh (< pos mh))
-                          (throw 'skip nil))))
-                  it))
+               ;; Footnote prefix
+               (when (string= word "fn")
+                 (let* ((r (fao-enclosed-p pos "\\[" ":" bol eol))
+                        (pos-beg (car r))
+                        (pos-end (1- (cadr r))))
+                   (when (and (char-equal (char-after pos-beg) 91)
+                              (char-equal (char-after pos-end) ?:))
+                     (throw 'skip nil)))))
+             it))
           (when result
             (setq retval (append retval `(,result))))))
       retval)))
@@ -148,4 +134,8 @@
 (advice-add #'flycheck-aspell--parse :around #'flycheck-aspell--parse-org)
 
 (provide 'flycheck-aspell-org)
+
+;; Local Variables:
+;; read-symbol-shorthands: (("fao" . "flycheck-aspell-org"))
+;; End:
 ;;; flycheck-aspell-org.el ends here
