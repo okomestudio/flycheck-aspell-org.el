@@ -1,12 +1,12 @@
 ;;; flycheck-aspell-org.el --- Aspell checker for flycheck in Org documents  -*- lexical-binding: t -*-
 ;;
-;; Copyright (C) 2024 Taro Sato
+;; Copyright (C) 2024-2025 Taro Sato
 ;;
 ;; Author: Taro Sato <okomestudio@gmail.com>
 ;; Created: September 1, 2019
 ;; Keywords: wp flycheck spell aspell
 ;; URL: https://github.com/okomestudio/flycheck-aspell-org
-;; Package-Version: 0.2.0
+;; Package-Version: 0.2.1
 ;; Package-Requires: ((emacs "25.1") (flycheck "28.0") (flycheck-aspell "0.2.0"))
 ;;
 ;;; License:
@@ -26,8 +26,8 @@
 ;;
 ;;; Commentary:
 ;;
-;; This module provides a plugin to make `flycheck-aspell' work better
-;; in documents written in Org mode. See README for further information.
+;; This module provides a plugin to make `flycheck-aspell' work better in
+;; documents written in Org mode. See README for further information.
 ;;
 ;;; Code:
 
@@ -36,8 +36,6 @@
 (flycheck-aspell-define-checker "org"
   "Org" ("--add-filter" "url")
   (org-mode))
-
-(add-to-list 'flycheck-checkers 'org-aspell-dynamic)
 
 (defcustom fao-skip-blocks '("src" "html" "latex" "example")
   "Org block structures for flycheck to skip.")

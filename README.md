@@ -1,10 +1,9 @@
 # flycheck-aspell-org
 
-An Org plug-in for flycheck-aspell, the spell checking helper mode in
-Emacs using flycheck.
+An Emacs Org plug-in for flycheck-aspell, the spell checking helper for flycheck.
 
-The plug-in filters the aspell output to skip spelling errors that
-occur within some Org document structures. These include
+The plug-in filters the aspell output to skip errors within some Org document structures.
+These include:
 
 - Text marked as inline code (enclosed by the "`~`" markup)
 - Org tags and TODO labels
@@ -16,22 +15,22 @@ occur within some Org document structures. These include
 ## Installation
 
 Follow the [instruction in the flycheck-aspell's
-README](https://github.com/leotaku/flycheck-aspell/) for
-flycheck-aspell installation.
+README](https://github.com/leotaku/flycheck-aspell/) for flycheck-aspell installation.
 
 Then add the following to your `init.el`:
 
 ``` emacs-lisp
 (use-package flycheck-aspell-org
-  :straight (:host github :repo "okomestudio/flycheck-aspell-org")
+  :straight (flycheck-aspell-org :type git
+                                 :host github
+                                 :repo "okomestudio/flycheck-aspell-org")
   :after (flycheck-aspell)
-  :demand t)
+  :init (add-to-list 'flycheck-checkers 'org-aspell-dynamic))
 ```
 
 ## Usage
 
-When installed, flycheck-aspell-org activates automatically in all the
-Org mode.
+When installed, flycheck-aspell-org activates automatically in all the Org mode.
 
 ## TODOs
 
